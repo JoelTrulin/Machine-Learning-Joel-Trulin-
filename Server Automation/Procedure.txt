@@ -1,0 +1,62 @@
+step 1:
+sudo nano /usr/local/bin/start.sh
+#!/bin/bash
+sudo mkfs -t ext4  /dev/nvme0n1
+
+sudo mount /dev/nvme0n1 /my-byte
+
+echo "In progress" > /my-byte/status.txt
+
+python3 /usr/local/bin/joeltemplate.py
+
+chown -R azureuser:azureuser /my-byte
+
+echo "Done" > /my-byte/status.txt
+step 2:
+sudo nano /usr/local/bin/joeltemplate.py
+import virtualenv
+import os
+import subprocess
+
+Folder_name='Joel'
+Env_name = 'faceid_venv'
+
+subprocess.run(f"mkdir /my-byte/{Folder_name}", shell=True)
+
+venv_path = f"/my-byte/{Folder_name}/{Env_name}"
+# venv_dir = os.path.join(os.path.expanduser("~"), venv_path)
+subprocess.run(f"virtualenv {venv_path}", shell=True)
+
+
+# Activate the virtual environment
+# subprocess.run(f"sudo {venv_path}/bin/activate", shell=True)
+env = f'/my-byte/{Folder_name}/{Env_name}/bin/python3 -m'
+os.system(f'{env} pip install ipykernel')
+os.system(f'{env} ipykernel install --user --name {Env_name}')
+
+commands = ["pip install -U tensorflow[and-cuda]==2.14",
+            "pip install dvc[all]",
+            "pip install dvclive",
+            "pip install opencv-contrib-python"
+            ]
+for cmd in commands:
+    os.system(f'{env} {cmd}')
+step 3:
+sudo nano /etc/systemd/system/mount-spot-disk.service
+[Unit]
+Description=Mount Spot Disks
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/start.sh
+
+[Install]
+WantedBy=multi-user.target
+step 4:
+sudo systemctl daemon-reload
+sudo systemctl enable mount-spot-disk.service
+sudo systemctl start mount-spot-disk.service
+
+sudo systemctl status mount-spot-disk.service
+
+sudo journalctl -u mount-spot-disk.service -b -f

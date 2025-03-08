@@ -1,0 +1,9 @@
+[Unit]
+Description=Mount Spot Disks
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/start.sh
+
+[Install]
+WantedBy=multi-user.target
